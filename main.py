@@ -129,7 +129,7 @@ def main():
             if message.data.content == "!optin @Editor":
                 c.execute("""INSERT OR IGNORE INTO sed_optin VALUES (?)""", (message.data.sender.id,))
                 conn.commit()
-                editbot.reply("You can now use sed syntax.kill ")
+                editbot.reply("You can now use sed syntax.")
 
             elif message.data.content == "!optout @Editor":
                 c.execute("""DELETE FROM sed_optin WHERE id = ?""", (message.data.sender.id,))
