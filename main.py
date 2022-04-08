@@ -96,7 +96,6 @@ def main():
         use_sed = False
 
         if message.type == "send-event":
-            print(message.data.content)
             if hasattr(message.data, "parent") and (message.data.content.startswith("!edit ") or is_valid_sed_command(message.data.content)):
                 if is_valid_sed_command(message.data.content):
                     c.execute("""SELECT * FROM sed_optin WHERE id = ?;""", (message.data.sender.id,))
