@@ -73,54 +73,45 @@ if not editbot.logged_in:
 backoff = 1
 
 while True:
-    try:
-        backoff = 1
-        while True:
-            message = editbot.parse()
-            use_sed = False
+    message = editbot.parse()
+    use_sed = False
 
-            if message.type == "send-event":
-                if hasattr(message.data, "parent") and startswith(message.data.content, ["!edit ", "s/"]):
-                    if message.data.content.startswith("s/"):
-                        use_sed = True
-                        c.execute("""SELECT * FROM sed_optin WHERE id = ?;""", (message.data.sender.id,))
-                        result = c.fetchone()
-                        if not result or result == 0:
-                            continue
+    if message.type == "send-event":
+        if hasattr(message.data, "parent") and startswith(message.data.content, ["!edit ", "s/"]):
+            if message.data.content.startswith("s/"):
+                use_sed = True
+                c.execute("""SELECT * FROM sed_optin WHERE id = ?;""", (message.data.sender.id,))
+                result = c.fetchone()
+                if not result or result == 0:
+                    continue
 
-                    edit_requester = message.data.sender.id
-                    edit_requested_on = message.data.parent
-                    requested_edit = message.data.content[2:].split("/") if use_sed else message.data.content[6:].split("->")
-                    request_parent_command["data"]["id"] = edit_requested_on
-                    editbot.send(request_parent_command)
-                    while message.type != "get-message-reply":
-                        message = editbot.parse()
+            edit_requester = message.data.sender.id
+            edit_requested_on = message.data.parent
+            requested_edit = message.data.content[2:].split("/") if use_sed else message.data.content[6:].split("->")
+            request_parent_command["data"]["id"] = edit_requested_on
+            editbot.send(request_parent_command)
+            while message.type != "get-message-reply":
+                message = editbot.parse()
 
-                    if message.data.sender.id == edit_requester:
-                        edit_command['data']["id"] = edit_requested_on
-                        if hasattr(message.data, "previous_edit_id"):
-                            edit_command["data"]["previous_edit_id"] = message.data.previous_edit_id
-                        edit_command["data"]["content"] = message.data.content.replace(requested_edit[0], requested_edit[1])
-                        edit_command["data"]["delete"] = False
-                        editbot.send(edit_command)
+            if message.data.sender.id == edit_requester:
+                edit_command['data']["id"] = edit_requested_on
+                if hasattr(message.data, "previous_edit_id"):
+                    edit_command["data"]["previous_edit_id"] = message.data.previous_edit_id
+                edit_command["data"]["content"] = message.data.content.replace(requested_edit[0], requested_edit[1])
+                edit_command["data"]["delete"] = False
+                editbot.send(edit_command)
 
-                if message.data.content == "!optin @Editor":
-                    c.execute("""INSERT OR IGNORE INTO sed_optin VALUES (?)""", (message.data.sender.id,))
-                    conn.commit()
-                    editbot.reply("You can now use sed syntax.kill ")
+        if message.data.content == "!optin @Editor":
+            c.execute("""INSERT OR IGNORE INTO sed_optin VALUES (?)""", (message.data.sender.id,))
+            conn.commit()
+            editbot.reply("You can now use sed syntax.kill ")
 
-                elif message.data.content == "!optout @Editor":
-                    c.execute("""DELETE FROM sed_optin WHERE id = ?""", (message.data.sender.id,))
-                    conn.commit()
-                    editbot.reply("You will no longer be able to use the sed syntax.")
+        elif message.data.content == "!optout @Editor":
+            c.execute("""DELETE FROM sed_optin WHERE id = ?""", (message.data.sender.id,))
+            conn.commit()
+            editbot.reply("You will no longer be able to use the sed syntax.")
 
-            elif message.type == "login-reply" and message.data.success:
-                editbot.logged_in = True
-                editbot.disconnect()
-                editbot.connect()
-    except SystemExit:
-        sys.exit(0)
-    except:
-        time.sleep(backoff)
-        backoff *= 2
+    elif message.type == "login-reply" and message.data.success:
+        editbot.logged_in = True
+        editbot.disconnect()
         editbot.connect()
