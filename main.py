@@ -1,9 +1,25 @@
 import karelia
-import time
 import json
-import sys
 import sqlite3
-import pprint
+import sys
+import logging
+
+logger = logging.getLogger(__name__)
+handler = logging.FileHandler('editor.log')
+formatter = logging.Formatter('%(asctime)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
+def handle_exception(exc_type, exc_value, exc_traceback):
+    global message
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+    
+    logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+
+sys.excepthook = handle_exception
+
 
 def startswith(string, prefixes):
     for prefix in prefixes:
@@ -51,7 +67,7 @@ def main():
     conn = sqlite3.connect("edits.db")
     c = conn.cursor()
 
-    c.execute("CREATE TABLE IF NOT EXISTS sed_optin (id TEXT)")
+    c.execute("CREATE TABLE IF NOT EXISTS sed_optin (id TEXT )")
     conn.commit()
 
     editbot.connect()
