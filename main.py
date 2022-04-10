@@ -117,16 +117,20 @@ def main():
                     if hasattr(message.data, "previous_edit_id"):
                         edit_command["data"]["previous_edit_id"] = message.data.previous_edit_id
 
-                    if use_sed:
-                        edit_command["data"]["content"] = sed(requested_edit, message.data.content, edit_delimiter)
-                    else:
-                        edit_from, edit_to = requested_edit.split("->")
-                        edit_command["data"]["content"] = message.data.content.replace(edit_from, edit_to)
+                    try:
+                        if use_sed:
+                            edit_command["data"]["content"] = sed(requested_edit, message.data.content, edit_delimiter)
+                        else:
+                            edit_from, edit_to = requested_edit.split("->")
+                            edit_command["data"]["content"] = message.data.content.replace(edit_from, edit_to)
+                    except Exception as e:
+                        print(f"==============\n{e}\n==============\nAttempting substitution {edit_command} on message {message.data.content}"
+                        )
                     edit_command["data"]["delete"] = False
                     if edit_command["data"]["content"] != message.data.content:
                         editbot.send(edit_command)
 
-            if message.data.content == "!optin @Editor":
+            elif message.data.content == "!optin @Editor":
                 c.execute("""INSERT OR IGNORE INTO sed_optin VALUES (?)""", (message.data.sender.id,))
                 conn.commit()
                 editbot.reply("You can now use sed syntax.")
@@ -135,6 +139,20 @@ def main():
                 c.execute("""DELETE FROM sed_optin WHERE id = ?""", (message.data.sender.id,))
                 conn.commit()
                 editbot.reply("You will no longer be able to use the sed syntax.")
+
+            elif hasattr(message.data, "parent") and message.data.content == "!delete" and message.data.sender.is_manager:
+                delete_command = {
+                    "type": "edit-message",
+                    "data": {
+                        "id": message.data.parent,
+                        "previous_edit_id": "",
+                        "content": "",
+                        "delete": True,
+                        "announce": True,
+                    }
+                }
+                editbot.send(delete_command)
+                
 
         elif message.type == "login-reply" and message.data.success:
             editbot.logged_in = True
