@@ -40,6 +40,14 @@ def sed(command, string, sep="/"):
 
     return string
 
+def edit(command, string):
+    if ("->") in command:
+        edit_from, edit_to = command.split("->", 1)
+        print(edit_from, edit_to)
+        string = string.replace(edit_from, edit_to)
+    
+    return string
+
 def is_valid_sed_command(command):
     if command.startswith("s") and not command[1].isalnum():
         return True
@@ -119,6 +127,9 @@ def main():
                     if result is not None and result != 0:
                         use_sed = True
 
+                if is_valid_sed_command(message.data.content) and not use_sed:
+                    continue
+
                 edit_requester = message.data.sender.id
                 edit_requested_on = message.data.parent
                 requested_edit = message.data.content[2:] if use_sed else message.data.content[6:]
@@ -137,11 +148,11 @@ def main():
                         if use_sed:
                             edit_command["data"]["content"] = sed(requested_edit, message.data.content, edit_delimiter)
                         else:
-                            edit_from, edit_to = requested_edit.split("->")
-                            edit_command["data"]["content"] = message.data.content.replace(edit_from, edit_to)
+                            edit_command["data"]["content"] = edit(requested_edit, message.data.content)
                     except Exception as e:
-                        print(f"==============\n{e}\n==============\nAttempting substitution {edit_command} on message {message.data.content}"
-                        )
+                        logger.error(e)
+                        continue
+
                     edit_command["data"]["delete"] = False
                     if edit_command["data"]["content"] != message.data.content:
                         editbot.send(edit_command)
