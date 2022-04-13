@@ -1,8 +1,18 @@
-import karelia
 import json
+import logging
 import sqlite3
 import sys
-import logging
+from queue import Queue
+from threading import Thread
+
+import karelia
+
+ROOM = "timemachine"
+
+
+class HostCommand:
+    def __init__(self):
+        pass
 
 logger = logging.getLogger(__name__)
 handler = logging.FileHandler('editor.log')
@@ -20,6 +30,46 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 
 sys.excepthook = handle_exception
 
+def keepalive(bot: karelia.bot):
+    while True:
+        bot.parse()
+
+def host_thread(in_q: Queue):
+    with open("creds.json", "r") as f:
+        creds = json.loads(f.read())
+
+    login_command = {
+        "type": "login",
+        "data": {
+            "namespace": "email",
+            "id": creds["id"],
+            "password": creds["password"]
+        }
+    }
+
+    host_bot = karelia.bot(["bot: Editor"], ROOM)
+    host_bot.cookie = ""
+    host_bot.connect()
+
+    if not host_bot.logged_in:
+        host_bot.send(login_command)
+        while True:
+            message = host_bot.parse()
+            if message.type == "login-reply" and message.data.success:
+                break
+             
+    host_bot.logged_in = True
+    host_bot.disconnect()
+    host_bot.connect(stealth=True)
+
+    keepalive_thread = Thread(target=keepalive, args=(host_bot,))
+    keepalive_thread.start()
+
+    while True:
+        if in_q.qsize():
+            packet = in_q.get()
+            #print(packet)
+            host_bot.send(packet)
 
 def startswith(string, prefixes):
     for prefix in prefixes:
@@ -53,8 +103,8 @@ def is_valid_sed_command(command):
         return True
     return False
 
-def main():
-    editbot = karelia.bot("Editor", "xkcd")
+def main(out_q):
+    editbot = karelia.bot("Editor", ROOM)
     editbot.stock_responses["short_help"] = "s/fix/typos"
     editbot.stock_responses["long_help"] = """Use me to edit your messages and fix your typos. Evidence of your change will be public. 
 
@@ -83,15 +133,6 @@ def main():
     with open("creds.json", "r") as f:
         creds = json.loads(f.read())
 
-    login_command = {
-        "type": "login",
-        "data": {
-            "namespace": "email",
-            "id": creds["id"],
-            "password": creds["password"]
-        }
-    }
-
     edit_command = {
         "type": "edit-message",
         "data": {
@@ -109,9 +150,6 @@ def main():
             "id": "",
         }
     }
-
-    if not editbot.logged_in:
-        editbot.send(login_command)
 
     backoff = 1
 
@@ -155,7 +193,7 @@ def main():
 
                     edit_command["data"]["delete"] = False
                     if edit_command["data"]["content"] != message.data.content:
-                        editbot.send(edit_command)
+                        out_q.put(edit_command)
 
             elif message.data.content == "!optin @Editor":
                 c.execute("""INSERT OR IGNORE INTO sed_optin VALUES (?)""", (message.data.sender.id,))
@@ -168,23 +206,26 @@ def main():
                 editbot.reply("You will no longer be able to use the sed syntax.")
 
             elif hasattr(message.data, "parent") and message.data.content == "!delete" and message.data.sender.is_manager:
+                request_parent_command["data"]["id"] = message.data.parent
+                editbot.send(request_parent_command)
+                while message.type != "get-message-reply":
+                    message = editbot.parse()
+
                 delete_command = {
                     "type": "edit-message",
                     "data": {
-                        "id": message.data.parent,
-                        "previous_edit_id": "",
+                        "id": message.data.id,
+                        "previous_edit_id": message.data.previous_edit_id if hasattr(message.data, "previous_edit_id") else "",
                         "content": "",
                         "delete": True,
                         "announce": True,
                     }
                 }
-                editbot.send(delete_command)
-                
-
-        elif message.type == "login-reply" and message.data.success:
-            editbot.logged_in = True
-            editbot.disconnect()
-            editbot.connect()
+                out_q.put(delete_command)
 
 if __name__ == "__main__":
-    main()
+    q = Queue()
+    editbot = Thread(target = main, args = (q,))
+    host_bot = Thread(target = host_thread, args = (q,))
+    editbot.start()
+    host_bot.start()
