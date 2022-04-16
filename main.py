@@ -52,20 +52,25 @@ class Editor:
             }
         }
 
-        self.host_bot = karelia.bot(["bot: Editor"], self.ROOM)
+        self.host_bot = karelia.bot(["EditorBot"], self.ROOM, renegade=True)
         self.host_bot.cookie = ""
         self.host_bot.connect()
 
         if not self.host_bot.logged_in:
+            self.logger.debug("Logging in...")
             self.host_bot.send(login_command)
+            self.logger.debug("Awaiting login response...")
             while True:
                 message = self.host_bot.parse()
+                self.logger.debug(f"    {message.type}")
                 if message.type == "login-reply" and message.data.success:
                     break
-                
+        
+        self.logger.debug("Received login-reply, disconnecting...")
         self.host_bot.logged_in = True
         self.host_bot.disconnect()
-        self.host_bot.connect()
+        self.host_bot.connect(stealth=True)
+        self.logger.debug("Reconnected!")
 
         keepalive_thread = Thread(target=self.keepalive)
         keepalive_thread.start()
