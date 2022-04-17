@@ -224,11 +224,11 @@ class Editor:
                 elif hasattr(self.message.data, "parent") and self.message.data.content == "!delete" and self.message.data.sender.is_manager:
                     request_parent_command["data"]["id"] = self.message.data.parent
                     self.editbot.send(request_parent_command)
-                    while self.message.type != "get-self.message-reply":
+                    while self.message.type != "get-message-reply":
                         self.message = self.editbot.parse()
 
                     delete_command = {
-                        "type": "edit-self.message",
+                        "type": "edit-message",
                         "data": {
                             "id": self.message.data.id,
                             "previous_edit_id": self.message.data.previous_edit_id if hasattr(self.message.data, "previous_edit_id") else "",
