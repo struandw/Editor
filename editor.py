@@ -19,7 +19,7 @@ class Editor:
         self.logger.addHandler(handler)
         sys.excepthook = self.handle_exception
 
-        self.ROOM = "xkcd"
+        self.ROOM = "timemachine"
 
         self.q = Queue()
         self.editbot = Thread(target = self.main)
@@ -110,7 +110,7 @@ class Editor:
         return string
 
     def is_valid_sed_command(self, command):
-        if command.startswith("s") and not command[1].isalnum():
+        if command.startswith("s") and len(command) > 1 and not command[1].isalnum():
             return True
         return False
 
