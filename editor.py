@@ -19,7 +19,7 @@ class Editor:
         self.logger.addHandler(handler)
         sys.excepthook = self.handle_exception
 
-        self.ROOM = "timemachine"
+        self.ROOM = "xkcd"
 
         self.q = Queue()
         self.editbot = Thread(target = self.main)
