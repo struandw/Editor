@@ -7,7 +7,6 @@ from threading import Thread
 
 import karelia
 
-#from sqlalchemy import MetaData, create_engine
 
 class Editor:
     def __init__(self):
@@ -19,7 +18,7 @@ class Editor:
         self.logger.addHandler(handler)
         sys.excepthook = self.handle_exception
 
-        self.ROOM = "xkcd"
+        self.ROOM = sys.argv[1]
 
         self.q = Queue()
         self.editbot = Thread(target = self.main)
