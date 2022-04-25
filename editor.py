@@ -110,7 +110,8 @@ class Editor:
 
     def is_valid_sed_command(self, command):
         if command.startswith("s") and len(command) > 1 and not command[1].isalnum():
-            return True
+            if command.count(command[1]) == 3:
+                return True
         return False
 
     def main(self):
