@@ -2,6 +2,7 @@ import json
 import logging
 import sqlite3
 import sys
+from posixpath import split
 from queue import Queue
 from threading import Thread
 
@@ -119,7 +120,7 @@ class Editor:
         self.editbot.stock_responses["short_help"] = "s/fix/typos"
         self.editbot.stock_responses["long_help"] = """Use me to edit your messages and fix your typos. Evidence of your change will be public. 
 
-        Make a child message to your message, with the syntax !edit wrong->write, where wrong is the original text and right is the correction.
+        Make a child message to your message, with the syntax !edit wrong->right, where wrong is the original text and right is the correction.
 
         [Pouncy Silverkitten] This example message has a typos.
             [Pouncy Silverkitten] !edit typos->typo
@@ -166,6 +167,14 @@ class Editor:
             use_sed = False
 
             if self.message.type == "send-event":
+                stripped_message = self.message.data.content
+                while stripped_message.endswith(" "):
+                    stripped_message = stripped_message[:-1]
+                self.message.data.content = stripped_message
+                print(self.message.data.content)
+
+                split_message = self.message.data.content.split()
+
                 if hasattr(self.message.data, "parent") and (self.message.data.content.startswith("!edit ") or self.is_valid_sed_command(self.message.data.content)):
                     self.logger.debug(f"[{self.message.data.id}] Got an edit request packet")
                     if self.is_valid_sed_command(self.message.data.content):
@@ -211,15 +220,16 @@ class Editor:
                             self.logger.debug(f"[{self.message.data.id}] Sending edit packet to host thread")
                             self.q.put(edit_command)
 
-                elif self.message.data.content == "!optin @Editor":
-                    self.c.execute("""INSERT OR IGNORE INTO sed_optin VALUES (?)""", (self.message.data.sender.id,))
-                    self.conn.commit()
-                    self.editbot.reply("You can now use sed syntax.")
+                elif len(split_message) == 2:
+                    if split_message[0] == "!optin" and split_message[1].lower() == "@editor":
+                        self.c.execute("""INSERT OR IGNORE INTO sed_optin VALUES (?)""", (self.message.data.sender.id,))
+                        self.conn.commit()
+                        self.editbot.reply("You can now use sed syntax.")
 
-                elif self.message.data.content == "!optout @Editor":
-                    self.c.execute("""DELETE FROM sed_optin WHERE id = ?""", (self.message.data.sender.id,))
-                    self.conn.commit()
-                    self.editbot.reply("You will no longer be able to use the sed syntax.")
+                    elif split_message[0] == "!optout" and split_message[1].lower() == "@editor":
+                        self.c.execute("""DELETE FROM sed_optin WHERE id = ?""", (self.message.data.sender.id,))
+                        self.conn.commit()
+                        self.editbot.reply("You will no longer be able to use the sed syntax.")
 
                 elif hasattr(self.message.data, "parent") and self.message.data.content == "!delete" and self.message.data.sender.is_manager:
                     request_parent_command["data"]["id"] = self.message.data.parent
@@ -227,17 +237,17 @@ class Editor:
                     while self.message.type != "get-message-reply":
                         self.message = self.editbot.parse()
 
-                    delete_command = {
-                        "type": "edit-message",
-                        "data": {
-                            "id": self.message.data.id,
-                            "previous_edit_id": self.message.data.previous_edit_id if hasattr(self.message.data, "previous_edit_id") else "",
-                            "content": "",
-                            "delete": True,
-                            "announce": True,
+                        delete_command = {
+                            "type": "edit-message",
+                            "data": {
+                                "id": self.message.data.id,
+                                "previous_edit_id": self.message.data.previous_edit_id if hasattr(self.message.data, "previous_edit_id") else "",
+                                "content": "",
+                                "delete": True,
+                                "announce": True,
+                            }
                         }
-                    }
-                    self.q.put(delete_command)
+                        self.q.put(delete_command)
 
 if __name__ == "__main__":
     bot = Editor()
