@@ -232,7 +232,7 @@ class Editor:
                         self.editbot.reply("You will no longer be able to use the sed syntax.")
                         self.logger.debug(f"[{self.message.data.sender.name}] User has disabled sed")
 
-                elif hasattr(self.message.data, "parent") and self.message.data.content == "!delete" and self.message.data.sender.is_manager:
+                elif hasattr(self.message.data, "parent") and self.message.data.content == "!delete" and hasattr(self.message.data.sender, "is_manager") and self.message.data.sender.is_manager:
                     request_parent_command["data"]["id"] = self.message.data.parent
                     self.editbot.send(request_parent_command)
                     while self.message.type != "get-message-reply":
