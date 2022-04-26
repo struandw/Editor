@@ -111,7 +111,7 @@ class Editor:
 
     def is_valid_sed_command(self, command):
         if command.startswith("s") and len(command) > 1 and not command[1].isalnum():
-            if command.count(command[1]) == 3:
+            if command.count(command[1]) in [2, 3]:
                 return True
         return False
 
@@ -171,11 +171,11 @@ class Editor:
                 while stripped_message.endswith(" "):
                     stripped_message = stripped_message[:-1]
                 self.message.data.content = stripped_message
-                print(self.message.data.content)
 
                 split_message = self.message.data.content.split()
 
                 if hasattr(self.message.data, "parent") and (self.message.data.content.startswith("!edit ") or self.is_valid_sed_command(self.message.data.content)):
+                    self.edit_command_id = self.message.data.id
                     self.logger.debug(f"[{self.message.data.id}] Got an edit request packet")
                     if self.is_valid_sed_command(self.message.data.content):
                         self.logger.debug(f"[{self.message.data.id}] Requested sed")
@@ -225,11 +225,13 @@ class Editor:
                         self.c.execute("""INSERT OR IGNORE INTO sed_optin VALUES (?)""", (self.message.data.sender.id,))
                         self.conn.commit()
                         self.editbot.reply("You can now use sed syntax.")
+                        self.logger.debug(f"[{self.message.data.sender.nick}] User has enabled sed")
 
                     elif split_message[0] == "!optout" and split_message[1].lower() == "@editor":
                         self.c.execute("""DELETE FROM sed_optin WHERE id = ?""", (self.message.data.sender.id,))
                         self.conn.commit()
                         self.editbot.reply("You will no longer be able to use the sed syntax.")
+                        self.logger.debug(f"[{self.message.data.sender.nick}] User has disabled sed")
 
                 elif hasattr(self.message.data, "parent") and self.message.data.content == "!delete" and self.message.data.sender.is_manager:
                     request_parent_command["data"]["id"] = self.message.data.parent
