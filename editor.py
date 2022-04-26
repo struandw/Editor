@@ -11,15 +11,14 @@ import karelia
 
 class Editor:
     def __init__(self):
+        self.ROOM = sys.argv[1]
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
-        handler = logging.FileHandler('editor.log')
+        handler = logging.FileHandler(f'{self.ROOM}.log')
         formatter = logging.Formatter('%(asctime)s - %(message)s')
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
         sys.excepthook = self.handle_exception
-
-        self.ROOM = sys.argv[1]
 
         self.q = Queue()
         self.editbot = Thread(target = self.main)
@@ -134,7 +133,7 @@ class Editor:
         As you may have inferred, this bot was built by @PouncySilverkitten and forms part of the Karelian Legion.
         """
 
-        self.conn = sqlite3.connect("edits.db")
+        self.conn = sqlite3.connect("actions.db")
         self.c = self.conn.cursor()
 
         self.c.execute("CREATE TABLE IF NOT EXISTS sed_optin (id TEXT )")
@@ -225,13 +224,13 @@ class Editor:
                         self.c.execute("""INSERT OR IGNORE INTO sed_optin VALUES (?)""", (self.message.data.sender.id,))
                         self.conn.commit()
                         self.editbot.reply("You can now use sed syntax.")
-                        self.logger.debug(f"[{self.message.data.sender.nick}] User has enabled sed")
+                        self.logger.debug(f"[{self.message.data.sender.name}] User has enabled sed")
 
                     elif split_message[0] == "!optout" and split_message[1].lower() == "@editor":
                         self.c.execute("""DELETE FROM sed_optin WHERE id = ?""", (self.message.data.sender.id,))
                         self.conn.commit()
                         self.editbot.reply("You will no longer be able to use the sed syntax.")
-                        self.logger.debug(f"[{self.message.data.sender.nick}] User has disabled sed")
+                        self.logger.debug(f"[{self.message.data.sender.name}] User has disabled sed")
 
                 elif hasattr(self.message.data, "parent") and self.message.data.content == "!delete" and self.message.data.sender.is_manager:
                     request_parent_command["data"]["id"] = self.message.data.parent
